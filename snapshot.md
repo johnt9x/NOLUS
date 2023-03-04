@@ -13,7 +13,7 @@ cp $HOME/.nolus/data/priv_validator_state.json $HOME/.nolus/priv_validator_state
 rm -rf $HOME/.nolus/data
 
 
-Download latest snapshot
+Download latest snapshot (LAST_BLOCK_HEIGHT 1234716)
 
 
 curl -O http://86.48.16.205/nolus/nolus-rila_snapshot_latest.tar.lz4
