@@ -182,6 +182,11 @@ sudo systemctl restart hermesd
 Check hermes logs
 journalctl -u hermesd -f -o cat
 
+Perform token transfer using IBC Relayer
+All commands listed below are just examples.
+nolusd tx ibc-transfer transfer transfer channel-0 osmo......... 10unls --from wallet --fees 500unls
+osmosisd tx ibc-transfer transfer transfer channel-1837 nolus..... 1uosmo --from wallet --chain-id osmo-test-4 --fees 500uosmo
+
 remove hermes: 
 
 sudo systemctl stop hermesd
