@@ -1,0 +1,192 @@
+Before setting up relayer you need to make sure you already have:
+
+Fully synchronized RPC nodes for each Cosmos project you want to connect (run osmosis node: https://docs.osmosis.zone/networks/join-testnet/)
+RPC enpoints should be available from hermes service
+Indexing is set to kv and is enabled on each node
+For each chain you will need to have wallets that are funded with tokens. This wallets will be used to do all relayer stuff and pay commission
+### 1. Install Rust Dependencies
+
+Since we are relying on a Rust-based implementation, we would need to install some Rust dependencies first:
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+```bash
+source "$HOME/.cargo/env"
+```
+
+```bash
+sudo apt-get install pkg-config libssl-dev
+```
+
+```bash
+sudo apt install librust-openssl-dev build-essential git
+```
+
+### 2. Configure Hermes
+
+Create the directory where you'll place the binary, clone the hermes source repository and build it using the latest release:
+
+```bash
+cargo install ibc-relayer-cli --bin hermes --locked
+mkdir -p $HOME/hermes
+git clone https://github.com/informalsystems/ibc-rs.git hermes
+cd hermes
+git checkout v1.2.0
+```
+
+Make a hermes “keys” directory, copy config.toml from the cloned repo to the .hermes directory:
+
+```bash
+mkdir -p $HOME/.hermes
+mkdir -p $HOME/.hermes/keys
+cp config.toml $HOME/.hermes
+```
+
+Check if hermes is installed properly by running:
+
+```bash
+hermes version
+```
+
+Edit the hermes **config.toml** file by including configurations for the two chains that you want to relay between, namely Nolus Rila testnet and Osmosis testnet:
+
+```bash
+nano $HOME/.hermes/config.toml
+
+[[chains]]
+id = 'nolus-rila'
+rpc_addr = 'http://0.0.0.0:43657'
+grpc_addr = 'http://0.0.0.0:43090'
+websocket_addr = 'ws://127.0.0.1:43657/websocket'
+
+rpc_timeout = '10s'
+account_prefix = 'nolus'
+key_name = 'hermes-nolus'
+store_prefix = 'ibc'
+address_type = { derivation = 'cosmos' }
+default_gas = 1000000
+max_gas = 4000000
+gas_price = { price = 0.0025, denom = 'unls' }
+gas_multiplier = 1.1
+max_msg_num = 30
+max_tx_size = 2097152
+clock_drift = '5s'
+max_block_time = '30s'
+trusting_period = '13days'
+memo_prefix = 'Relayed by legend'
+trust_threshold = { numerator = '1', denominator = '3' }
+
+[chains.packet_filter]
+policy = 'allow'
+list = [
+  ['transfer', 'channel-0'], # osmos
+]
+
+############################################################### OSMOSIS ###############################################################
+
+[[chains]]
+id = 'osmo-test-4'
+rpc_addr = 'http://0.0.0.0:26657'
+grpc_addr = 'http://0.0.0.0:9090'
+websocket_addr = 'ws://127.0.0.1:26657/websocket'
+
+rpc_timeout = '10s'
+account_prefix = 'osmo'
+key_name = 'hermes-osmosis'
+address_type = { derivation = 'cosmos' }
+store_prefix = 'ibc'
+default_gas = 5000000
+max_gas = 15000000
+gas_price = { price = 0.0026, denom = 'uosmo' }
+gas_multiplier = 1.1
+max_msg_num = 20
+max_tx_size = 209715
+clock_drift = '20s'
+max_block_time = '10s'
+trusting_period = '10days'
+memo_prefix = 'Relayed by legend'
+trust_threshold = { numerator = '1', denominator = '3' }
+
+[chains.packet_filter]
+policy = 'allow'
+list = [
+  ['transfer', 'channel-1837'], # nolus
+]
+
+Add your relayer wallet to hermes' keyring (located in `$HOME/.hermes/keys`). The wallet should have a positive balance on both the Nolus and the Osmosis networks since the relayer would need to pay gas fees to submit IBC transactions.
+
+<aside>
+ℹ️ The best practice is to use the same mnemonic over all networks. Do not use your relaying addresses for anything else because it will lead to account sequence errors.
+
+</aside>
+
+```bash
+hermes keys add --chain nolus-rila --mnemonic-file <hermes-seed-file>
+hermes keys add --chain osmo-test-4 --mnemonic-file <hermes-seed-file>
+```
+
+sudo tee $HOME/.hermes/nolus-rila.mnemonic > /dev/null <<EOF
+(24 seed pharse)
+EOF
+sudo tee $HOME/.hermes/osmo-test-4.mnemonic > /dev/null <<EOF
+(24 seed pharse)
+EOF
+hermes keys add --chain nolus-rila --mnemonic-file $HOME/.hermes/nolus-rila.mnemonic
+hermes keys add --chain osmo-test-4 --mnemonic-file $HOME/.hermes/osmo-test-4.mnemonic
+
+Validate Configuration
+
+Validate your `~/.hermes/config.toml` file by running:
+
+```bash
+hermes config validate
+```
+
+Perform a health check:
+
+```bash
+hermes health-check
+```
+
+You should see a similar output as the one below:
+
+```bash
+...
+INFO ThreadId(01) [nolus-rila] chain is healthy
+INFO ThreadId(01) [osmo-test-4] chain is healthy
+
+
+Create hermes service daemon
+sudo tee /etc/systemd/system/hermesd.service > /dev/null <<EOF
+[Unit]
+Description=hermes
+After=network-online.target
+
+[Service]
+User=$USER
+ExecStart=$(which hermes) start
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable hermesd
+sudo systemctl restart hermesd
+Check hermes logs
+journalctl -u hermesd -f -o cat
+
+remove hermes: 
+
+sudo systemctl stop hermesd
+sudo systemctl disable hermesd
+sudo rm /etc/systemd/system/hermesd* -rf
+sudo rm $(which hermes) -rf
+sudo rm -rf $HOME/.hermes
+sudo rm -rf $HOME/hermes*
+
