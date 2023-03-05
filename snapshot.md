@@ -28,5 +28,4 @@ mv $HOME/.nolus/priv_validator_state.json.backup $HOME/.nolus/data/priv_validato
 Restart the service and check the log
 
 
-
 sudo systemctl start nolusd && sudo journalctl -u nolusd -f --no-hostname -o cat
