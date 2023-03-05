@@ -126,12 +126,13 @@ Add your relayer wallet to hermes' keyring (located in `$HOME/.hermes/keys`). Th
 hermes keys add --chain nolus-rila --mnemonic-file <hermes-seed-file>
 hermes keys add --chain osmo-test-4 --mnemonic-file <hermes-seed-file>
 ```
+Specific instructions:
 
 sudo tee $HOME/.hermes/nolus-rila.mnemonic > /dev/null <<EOF
-(24 seed pharse)
+(enter 24 seed pharse)
 EOF
 sudo tee $HOME/.hermes/osmo-test-4.mnemonic > /dev/null <<EOF
-(24 seed pharse)
+(enter 24 seed pharse)
 EOF
 hermes keys add --chain nolus-rila --mnemonic-file $HOME/.hermes/nolus-rila.mnemonic
 hermes keys add --chain osmo-test-4 --mnemonic-file $HOME/.hermes/osmo-test-4.mnemonic
